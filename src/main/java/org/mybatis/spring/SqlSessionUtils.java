@@ -22,6 +22,7 @@ import org.apache.ibatis.mapping.Environment;
 import org.apache.ibatis.session.ExecutorType;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.defaults.DefaultSqlSession;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
 import org.mybatis.spring.transaction.SpringManagedTransactionFactory;
@@ -98,17 +99,26 @@ public final class SqlSessionUtils {
 
     notNull(sessionFactory, NO_SQL_SESSION_FACTORY_SPECIFIED);
     notNull(executorType, NO_EXECUTOR_TYPE_SPECIFIED);
-
+    /**
+     * 同一个线程内, 第一次执行增删改查逻辑, 这里无法获取到SqlSession, 则会创建一个新的,
+     * 如果开启了事务, 会将此SqlSession绑定到当前线程的ThreadLocal中, 同一事务内其他的增删改查操作都可以获取到同一个SqlSession, 可以保证一级缓存不失效, 也节省性能, 不用每次都创建数据库连接.
+     * 反之未开启事务, 则不予绑定, 下次调用就无法从ThreadLocal中获取到, 就又会创建一个新的SqlSession.
+     * 所以为了保证mybatis的一级缓存不失效, 则需要开启事务.
+     * <p/>
+     * 关乎spring事务, spring源码实现, 从ThreadLocal中获取SqlSession, 这就能保证每个线程用到的SqlSession都是独立的, 互不影响的.
+     * 从而解决mybatis中SqlSession默认实现{@link DefaultSqlSession}的线程不安全问题.
+     * @see TransactionSynchronizationManager#getResource(Object)
+     */
     SqlSessionHolder holder = (SqlSessionHolder) TransactionSynchronizationManager.getResource(sessionFactory);
-
+    // 如果获取到了SqlSession, 则直接返回
     SqlSession session = sessionHolder(executorType, holder);
     if (session != null) {
       return session;
     }
-
+    // 未获取到, 则创建一个新的SqlSession
     LOGGER.debug(() -> "Creating a new SqlSession");
     session = sessionFactory.openSession(executorType);
-
+    // 当前线程注册绑定SqlSession
     registerSessionHolder(sessionFactory, executorType, exceptionTranslator, session);
 
     return session;
@@ -133,12 +143,17 @@ public final class SqlSessionUtils {
   private static void registerSessionHolder(SqlSessionFactory sessionFactory, ExecutorType executorType,
       PersistenceExceptionTranslator exceptionTranslator, SqlSession session) {
     SqlSessionHolder holder;
+    /**
+     * 判断事务是否在活跃状态,
+     * 如果开启了事务, 才会进入if, 会将此SqlSession绑定到当前线程的ThreadLocal中, 同一事务内其他的增删改查操作都可以获取到同一个SqlSession, 可以保证一级缓存不失效, 也节省性能, 不用每次都创建数据库连接.
+     * 反之未开启事务, 则不予绑定, 下次调用就无法从ThreadLocal中获取到, 就又会创建一个新的SqlSession.
+     */
     if (TransactionSynchronizationManager.isSynchronizationActive()) {
       Environment environment = sessionFactory.getConfiguration().getEnvironment();
 
       if (environment.getTransactionFactory() instanceof SpringManagedTransactionFactory) {
         LOGGER.debug(() -> "Registering transaction synchronization for SqlSession [" + session + "]");
-
+        // 当前线程绑定SqlSession
         holder = new SqlSessionHolder(session, executorType, exceptionTranslator);
         TransactionSynchronizationManager.bindResource(sessionFactory, holder);
         TransactionSynchronizationManager

@@ -23,6 +23,7 @@ import java.util.Optional;
 
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionTemplate;
+import org.mybatis.spring.annotation.MapperScannerRegistrar;
 import org.springframework.beans.PropertyValue;
 import org.springframework.beans.PropertyValues;
 import org.springframework.beans.factory.BeanNameAware;
@@ -39,6 +40,7 @@ import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.core.env.Environment;
+import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.util.StringUtils;
 
 /**
@@ -89,6 +91,15 @@ import org.springframework.util.StringUtils;
  * @see ClassPathMapperScanner
  *
  * 当前类实现了BD注册后置处理器(BeanDefinitionRegistryPostProcessor), 会在spring启动执行bean工厂后置处理器, 调用重写方法: {@link #postProcessBeanDefinitionRegistry(BeanDefinitionRegistry)}
+ * 是实现mybatis和spring整合的关键类,
+ * 一种方式是通过@MapperScan中导入{@link MapperScannerRegistrar}, 通过调用重写方法{@link MapperScannerRegistrar#registerBeanDefinitions(AnnotationMetadata, BeanDefinitionRegistry)}将当前类的BD注册到BDMap中
+ * 另一种方式也可以通过@Bean直接注入当前类来实现:
+ * @Bean
+ * public MapperScannerConfigurer mapperScannerConfigurer() {
+ *  MapperScannerConfigurer configurer = new MapperScannerConfigurer();
+ *  configurer.setBasePackage("com.zhao.mapper");
+ *  return configurer;
+ * }
  */
 public class MapperScannerConfigurer
     implements BeanDefinitionRegistryPostProcessor, InitializingBean, ApplicationContextAware, BeanNameAware {

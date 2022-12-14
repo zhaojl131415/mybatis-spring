@@ -39,6 +39,7 @@ import org.apache.ibatis.session.ResultHandler;
 import org.apache.ibatis.session.RowBounds;
 import org.apache.ibatis.session.SqlSession;
 import org.apache.ibatis.session.SqlSessionFactory;
+import org.apache.ibatis.session.defaults.DefaultSqlSession;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.dao.support.PersistenceExceptionTranslator;
 
@@ -129,7 +130,16 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
     this.sqlSessionFactory = sqlSessionFactory;
     this.executorType = executorType;
     this.exceptionTranslator = exceptionTranslator;
-    // 创建一个SqlSession的代理类, 其中指定了SqlSession拦截器: SqlSessionInterceptor
+    /**
+     * 创建一个SqlSession的代理类: sqlSessionProxy
+     * <p/>
+     * 在执行业务逻辑的增删改查方法, mybatis的底层就是通过执行{@link SqlSession}接口的实现类增删改查方法来实现,
+     * 在构建Mapper的代理类{@link #getMapper(Class)}的时候, 指定了{@link SqlSession}接口的实现类为this, 即当前实现类SqlSessionTemplate,
+     * 而当前SqlSessionTemplate类的增删改查方法中, 又是通过调用这个sqlSessionProxy的代理类的增删改查来执行的, 例: {@link #selectOne(String)}
+     * 这个sqlSessionProxy指定了SqlSession拦截器: {@link SqlSessionInterceptor}
+     * 而在执行sqlSessionProxy的增删改查方法时, 就会被{@link SqlSessionInterceptor}拦截,
+     * 进入拦截方法{@link SqlSessionInterceptor#invoke(Object, Method, Object[])}
+     */
     this.sqlSessionProxy = (SqlSession) newProxyInstance(SqlSessionFactory.class.getClassLoader(),
         new Class[] { SqlSession.class }, new SqlSessionInterceptor());
   }
@@ -312,9 +322,13 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
   @Override
   public <T> T getMapper(Class<T> type) {
     /**
-     * 调用Mybatis源码实现
+     * 调用Mybatis源码实现, 生成Mapper的代理对象
      * @see Configuration#getMapper(Class, SqlSession)
      * @see MapperRegistry#getMapper(Class, SqlSession)
+     *
+     * 这里getMapper方法生成的Mapper代理对象中 传参的 SqlSession为this, 也就是当前的SqlSessionTemplate,
+     * 最后在执行业务逻辑的增删改查方法, 进入的也就是通过Mapper代理对象得到的SqlSessionTemplate的增删改查方法, 从而进入sqlSessionProxy的增删改查方法,
+     * 这个sqlSessionProxy其实就是SqlSession的代理类,
      */
     return getConfiguration().getMapper(type, this);
   }
@@ -426,11 +440,15 @@ public class SqlSessionTemplate implements SqlSession, DisposableBean {
   private class SqlSessionInterceptor implements InvocationHandler {
     @Override
     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-      // 获取SqlSession
+      // 获取SqlSession: 各个线程间有独立的SqlSession
       SqlSession sqlSession = getSqlSession(SqlSessionTemplate.this.sqlSessionFactory,
           SqlSessionTemplate.this.executorType, SqlSessionTemplate.this.exceptionTranslator);
       try {
-        // 执行对应的增删改查方法
+        /**
+         * 执行对应的增删改查方法
+         * 以查询为例:
+         * @see DefaultSqlSession#selectOne(String)
+         */
         Object result = method.invoke(sqlSession, args);
         if (!isSqlSessionTransactional(sqlSession, SqlSessionTemplate.this.sqlSessionFactory)) {
           // force commit even on non-dirty sessions because some databases require

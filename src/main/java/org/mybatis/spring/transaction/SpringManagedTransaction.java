@@ -40,6 +40,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
  *
  * @author Hunter Presnall
  * @author Eduardo Macarron
+ *
+ * spring整合mybatis, 事务获取连接池的关键对象
  */
 public class SpringManagedTransaction implements Transaction {
 
@@ -60,6 +62,7 @@ public class SpringManagedTransaction implements Transaction {
 
   /**
    * {@inheritDoc}
+   * 获取连接池
    */
   @Override
   public Connection getConnection() throws SQLException {
@@ -77,6 +80,9 @@ public class SpringManagedTransaction implements Transaction {
    * false and will always call commit/rollback so we need to no-op that calls.
    */
   private void openConnection() throws SQLException {
+    /**
+     * 调用spring源码, 从spring事务的ThreadLocal中获取连接
+     */
     this.connection = DataSourceUtils.getConnection(this.dataSource);
     this.autoCommit = this.connection.getAutoCommit();
     this.isConnectionTransactional = DataSourceUtils.isConnectionTransactional(this.connection, this.dataSource);
