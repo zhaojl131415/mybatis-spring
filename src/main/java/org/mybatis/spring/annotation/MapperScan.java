@@ -77,6 +77,7 @@ import org.springframework.core.annotation.AliasFor;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 @Documented
+// 导入MapperScannerRegistrar
 @Import(MapperScannerRegistrar.class)
 @Repeatable(MapperScans.class)
 public @interface MapperScan {

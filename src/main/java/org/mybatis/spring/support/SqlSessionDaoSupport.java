@@ -41,6 +41,7 @@ public abstract class SqlSessionDaoSupport extends DaoSupport {
   private SqlSessionTemplate sqlSessionTemplate;
 
   /**
+   * 指定SqlSessionFactory.
    * Set MyBatis SqlSessionFactory to be used by this DAO. Will automatically create SqlSessionTemplate for the given
    * SqlSessionFactory.
    *
@@ -49,11 +50,15 @@ public abstract class SqlSessionDaoSupport extends DaoSupport {
    */
   public void setSqlSessionFactory(SqlSessionFactory sqlSessionFactory) {
     if (this.sqlSessionTemplate == null || sqlSessionFactory != this.sqlSessionTemplate.getSqlSessionFactory()) {
+      // 创建SqlSessionTemplate
       this.sqlSessionTemplate = createSqlSessionTemplate(sqlSessionFactory);
     }
   }
 
   /**
+   * 为给定的SqlSessionFactory创建一个SqlSessionTemplate.
+   * SqlSessionTemplate: 创建一个SqlSession的代理类, 其中指定了SqlSession拦截器: {@link SqlSessionTemplate.SqlSessionInterceptor}
+   *
    * Create a SqlSessionTemplate for the given SqlSessionFactory. Only invoked if populating the DAO with a
    * SqlSessionFactory reference!
    * <p>

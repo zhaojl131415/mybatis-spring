@@ -87,6 +87,8 @@ import org.springframework.util.StringUtils;
  *
  * @see MapperFactoryBean
  * @see ClassPathMapperScanner
+ *
+ * 当前类实现了BD注册后置处理器(BeanDefinitionRegistryPostProcessor), 会在spring启动执行bean工厂后置处理器, 调用重写方法: {@link #postProcessBeanDefinitionRegistry(BeanDefinitionRegistry)}
  */
 public class MapperScannerConfigurer
     implements BeanDefinitionRegistryPostProcessor, InitializingBean, ApplicationContextAware, BeanNameAware {
@@ -359,12 +361,13 @@ public class MapperScannerConfigurer
     if (this.processPropertyPlaceHolders) {
       processPropertyPlaceHolders();
     }
-
+    // 实例化一个Mapper扫描器,
     ClassPathMapperScanner scanner = new ClassPathMapperScanner(registry);
     scanner.setAddToConfig(this.addToConfig);
     scanner.setAnnotationClass(this.annotationClass);
     scanner.setMarkerInterface(this.markerInterface);
     scanner.setSqlSessionFactory(this.sqlSessionFactory);
+
     scanner.setSqlSessionTemplate(this.sqlSessionTemplate);
     scanner.setSqlSessionFactoryBeanName(this.sqlSessionFactoryBeanName);
     scanner.setSqlSessionTemplateBeanName(this.sqlSessionTemplateBeanName);
@@ -378,6 +381,12 @@ public class MapperScannerConfigurer
       scanner.setDefaultScope(defaultScope);
     }
     scanner.registerFilters();
+    /**
+     * 执行扫描器扫描@MapperScan指定的目录
+     *
+     * spring会执行实现子类的重写方法进行扫描
+     * @see ClassPathMapperScanner#doScan(String...)
+     */
     scanner.scan(
         StringUtils.tokenizeToStringArray(this.basePackage, ConfigurableApplicationContext.CONFIG_LOCATION_DELIMITERS));
   }
@@ -407,7 +416,7 @@ public class MapperScannerConfigurer
       }
 
       PropertyValues values = mapperScannerBean.getPropertyValues();
-
+      // 从
       this.basePackage = getPropertyValue("basePackage", values);
       this.sqlSessionFactoryBeanName = getPropertyValue("sqlSessionFactoryBeanName", values);
       this.sqlSessionTemplateBeanName = getPropertyValue("sqlSessionTemplateBeanName", values);

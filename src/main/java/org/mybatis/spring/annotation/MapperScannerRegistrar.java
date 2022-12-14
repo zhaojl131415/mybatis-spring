@@ -15,12 +15,6 @@
  */
 package org.mybatis.spring.annotation;
 
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
 import org.mybatis.spring.mapper.ClassPathMapperScanner;
 import org.mybatis.spring.mapper.MapperFactoryBean;
 import org.mybatis.spring.mapper.MapperScannerConfigurer;
@@ -38,6 +32,12 @@ import org.springframework.core.type.AnnotationMetadata;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.StringUtils;
 
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
 /**
  * A {@link ImportBeanDefinitionRegistrar} to allow annotation configuration of MyBatis mapper scanning. Using
  * an @Enable annotation allows beans to be registered via @Component configuration, whereas implementing
@@ -51,6 +51,9 @@ import org.springframework.util.StringUtils;
  * @see ClassPathMapperScanner
  *
  * @since 1.2.0
+ *
+ * 因为是被import进spring的, 所以在spring启动时, 会被当成lite配置类,
+ * 读取配置类的importBeanDefinitionRegistrars集合, 遍历集合执行其重写方法: {@link #registerBeanDefinitions(AnnotationMetadata, BeanDefinitionRegistry)}
  */
 public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, ResourceLoaderAware {
 
@@ -80,7 +83,7 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
 
   void registerBeanDefinitions(AnnotationMetadata annoMeta, AnnotationAttributes annoAttrs,
       BeanDefinitionRegistry registry, String beanName) {
-
+    // 构建Mapper扫描器配置类BD
     BeanDefinitionBuilder builder = BeanDefinitionBuilder.genericBeanDefinition(MapperScannerConfigurer.class);
     builder.addPropertyValue("processPropertyPlaceHolders", true);
 
@@ -140,7 +143,7 @@ public class MapperScannerRegistrar implements ImportBeanDefinitionRegistrar, Re
 
     // for spring-native
     builder.setRole(BeanDefinition.ROLE_INFRASTRUCTURE);
-
+    // 注册Mapper扫描器配置类BD
     registry.registerBeanDefinition(beanName, builder.getBeanDefinition());
 
   }

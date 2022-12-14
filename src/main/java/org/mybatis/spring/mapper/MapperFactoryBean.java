@@ -50,9 +50,11 @@ import org.springframework.beans.factory.FactoryBean;
  * @author Eduardo Macarron
  *
  * @see SqlSessionTemplate
+ *
+ * Mapper工厂类, 用于为Mapper生成代理类
  */
 public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements FactoryBean<T> {
-
+  /** Mapper接口, 为了给工厂按照指定的Mapper生成对应的代理类 */
   private Class<T> mapperInterface;
 
   private boolean addToConfig = true;
@@ -61,6 +63,7 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
     // intentionally empty
   }
 
+  /** 构造方法, 为Mapper接口指定值 */
   public MapperFactoryBean(Class<T> mapperInterface) {
     this.mapperInterface = mapperInterface;
   }
@@ -89,9 +92,15 @@ public class MapperFactoryBean<T> extends SqlSessionDaoSupport implements Factor
 
   /**
    * {@inheritDoc}
+   * 工厂类的重写方法
+   * 在spring的BD进行实例化时, 扫描到的Mapper是工厂类, 会调用当前方法, 生成Mapper的代理类, 注入到spring容器中.
    */
   @Override
   public T getObject() throws Exception {
+    /**
+     * 生成Mapper的代理类
+     * @see SqlSessionTemplate#getMapper(Class)
+     */
     return getSqlSession().getMapper(this.mapperInterface);
   }
 

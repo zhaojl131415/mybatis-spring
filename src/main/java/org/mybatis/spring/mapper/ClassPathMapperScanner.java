@@ -25,6 +25,7 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.logging.Logger;
 import org.mybatis.logging.LoggerFactory;
 import org.mybatis.spring.SqlSessionTemplate;
+import org.mybatis.spring.support.SqlSessionDaoSupport;
 import org.springframework.aop.scope.ScopedProxyFactoryBean;
 import org.springframework.aop.scope.ScopedProxyUtils;
 import org.springframework.beans.factory.annotation.AnnotatedBeanDefinition;
@@ -226,6 +227,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
    */
   @Override
   public Set<BeanDefinitionHolder> doScan(String... basePackages) {
+    // 调用父类: spring的ClassPathBeanDefinitionScanner扫描器进行扫描
     Set<BeanDefinitionHolder> beanDefinitions = super.doScan(basePackages);
 
     if (beanDefinitions.isEmpty()) {
@@ -234,6 +236,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
             + "' package. Please check your configuration.");
       }
     } else {
+      // 处理 spring的ClassPathBeanDefinitionScanner扫描器 扫描出来的BD集合
       processBeanDefinitions(beanDefinitions);
     }
 
@@ -243,6 +246,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
   private void processBeanDefinitions(Set<BeanDefinitionHolder> beanDefinitions) {
     AbstractBeanDefinition definition;
     BeanDefinitionRegistry registry = getRegistry();
+    // 遍历BD
     for (BeanDefinitionHolder holder : beanDefinitions) {
       definition = (AbstractBeanDefinition) holder.getBeanDefinition();
       boolean scopedProxy = false;
@@ -259,6 +263,10 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
 
       // the mapper interface is the original class of the bean
       // but, the actual class of the bean is MapperFactoryBean
+      /**
+       * 为BD对应的beanClass的构造方法添加参数, 在spring容器中对BD进行实例化的时候会调用, 相当于是调用:
+       * @see MapperFactoryBean#MapperFactoryBean(Class)
+       */
       definition.getConstructorArgumentValues().addGenericArgumentValue(beanClassName); // issue #59
       try {
         // for spring-native
@@ -266,7 +274,7 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
       } catch (ClassNotFoundException ignore) {
         // ignore
       }
-
+      /** 指定Mapper的BeanClass为工厂类: {@link MapperFactoryBean} */
       definition.setBeanClass(this.mapperFactoryBeanClass);
 
       definition.getPropertyValues().add("addToConfig", this.addToConfig);
@@ -304,6 +312,10 @@ public class ClassPathMapperScanner extends ClassPathBeanDefinitionScanner {
 
       if (!explicitFactoryUsed) {
         LOGGER.debug(() -> "Enabling autowire by type for MapperFactoryBean with name '" + holder.getBeanName() + "'.");
+        /**
+         * 指定BD对应的自动装配模式为by_type: 在实例化的时候, 会执行所有的set开头的方法(包括父类)
+         * @see SqlSessionDaoSupport#setSqlSessionFactory(SqlSessionFactory)
+         */
         definition.setAutowireMode(AbstractBeanDefinition.AUTOWIRE_BY_TYPE);
       }
 
