@@ -85,6 +85,8 @@ import org.springframework.util.ClassUtils;
  *
  * @see #setConfigLocation
  * @see #setDataSource
+ *
+ * 当前类实现{@link InitializingBean}接口, 会在当前类初始化后执行重写方法{@link #afterPropertiesSet()}, 构建SqlSessionFactory
  */
 public class SqlSessionFactoryBean
     implements FactoryBean<SqlSessionFactory>, InitializingBean, ApplicationListener<ApplicationEvent> {
@@ -488,7 +490,7 @@ public class SqlSessionFactoryBean
     notNull(sqlSessionFactoryBuilder, "Property 'sqlSessionFactoryBuilder' is required");
     state((configuration == null && configLocation == null) || !(configuration != null && configLocation != null),
         "Property 'configuration' and 'configLocation' can not specified with together");
-
+    // 构建SqlSessionFactory
     this.sqlSessionFactory = buildSqlSessionFactory();
   }
 
@@ -594,7 +596,10 @@ public class SqlSessionFactoryBean
         ErrorContext.instance().reset();
       }
     }
-
+    /**
+     * 指定事务工厂: {@link SpringManagedTransactionFactory}
+     * 用来保证spring事务内的多个增删改查的sql操作都使用同一个数据库连接
+     */
     targetConfiguration.setEnvironment(new Environment(this.environment,
         this.transactionFactory == null ? new SpringManagedTransactionFactory() : this.transactionFactory,
         this.dataSource));
